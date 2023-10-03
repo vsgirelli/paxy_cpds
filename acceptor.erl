@@ -13,19 +13,19 @@ init(Name, PanelId) ->
 acceptor(Name, Promised, Voted, Value, PanelId) ->
   receive
     {prepare, Proposer, Round} ->
-      case order:gr(..., ...) of
+      case order:gr(Round, Promised) of
         true ->
-          ... ! {promise, ..., ..., ...},               
+          Proposer ! {promise, Round, Voted, Value},               
       io:format("[Acceptor ~w] Phase 1: promised ~w voted ~w colour ~w~n",
-                 [Name, ..., ..., Value]),
+                 [Name, Round, Voted, Value]),
           % Update gui
           Colour = case Value of na -> {0,0,0}; _ -> Value end,
           PanelId ! {updateAcc, "Voted: " ++ io_lib:format("~p", [Voted]), 
-                     "Promised: " ++ io_lib:format("~p", [...]), Colour},
-          acceptor(Name, ..., Voted, Value, PanelId);
+                     "Promised: " ++ io_lib:format("~p", [Round]), Colour},
+          acceptor(Name, Round, Voted, Value, PanelId);
         false ->
-          ... ! {sorry, {prepare, ...}},
-          acceptor(Name, ..., Voted, Value, PanelId)
+          Proposer ! {sorry, {prepare, Promised}},
+          acceptor(Name, Promised, Voted, Value, PanelId)
       end;
     {accept, Proposer, Round, Proposal} ->
       case order:goe(..., ...) of
