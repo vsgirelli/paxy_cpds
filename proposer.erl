@@ -24,29 +24,29 @@ round(Name, Backoff, Round, Proposal, Acceptors, PanelId) ->
              [Name, Round, Proposal]),
   % Update gui
   PanelId ! {updateProp, "Round: " ++ io_lib:format("~p", [Round]), Proposal},
-  case ballot(Name, ..., ..., ..., PanelId) of
+  case ballot(Name, Round, Proposal, Acceptors, PanelId) of % due to the ballot function bellow
     {ok, Value} ->
       {Value, Round};
     abort ->
       timer:sleep(rand:uniform(Backoff)),
-      Next = order:inc(...),
-      round(Name, (2*Backoff), ..., Proposal, Acceptors, PanelId)
+      Next = order:inc(Round), %
+      round(Name, (2*Backoff), Next, Proposal, Acceptors, PanelId) %
   end.
 
 ballot(Name, Round, Proposal, Acceptors, PanelId) ->
-  prepare(..., ...),
-  Quorum = (length(...) div 2) + 1,
+  prepare(Round, Acceptors), %
+  Quorum = (length(Acceptors) div 2) + 1, %
   MaxVoted = order:null(),
-  case collect(..., ..., ..., ...) of
+  case collect(Quorum, Round, MaxVoted, Proposal) of % collect N promises
     {accepted, Value} ->
-      io:format("[Proposer ~w] Phase 2: round ~w proposal ~w (was ~w)~n", 
+      io:format("[Proposer ~w] Phase 2: round ~w proposal ~w (was ~w)~n",
                  [Name, Round, Value, Proposal]),
       % update gui
       PanelId ! {updateProp, "Round: " ++ io_lib:format("~p", [Round]), Value},
-      accept(..., ..., ...),
-      case vote(..., ...) of
+      accept(Round, Value, Acceptors), %
+      case vote(Quorum, Round) of %
         ok ->
-          {ok, ...};
+          {ok, Value}; %
         abort ->
           abort
       end;
@@ -54,23 +54,23 @@ ballot(Name, Round, Proposal, Acceptors, PanelId) ->
       abort
   end.
 
-collect(0, _, _, Proposal) ->
+collect(0, _, _, Proposal) -> % reached the Quorum
   {accepted, Proposal};
 collect(N, Round, MaxVoted, Proposal) ->
-  receive 
-    {promise, Round, _, na} ->
-      collect(..., ..., ..., ...);
+  receive
+    {promise, Round, _, na} -> % is the first answer, at the beginning of the execution, so we already start decrementing
+      collect(N-1, Round, MaxVoted, Proposal); % There wasn't any previous promise, so the acceptor promised on Round
     {promise, Round, Voted, Value} ->
-      case order:gr(..., ...) of
+      case order:gr(Voted, MaxVoted) of % There was a previous MaxVoted, that could be bigger or not than Voted
         true ->
-          collect(..., ..., ..., ...);
+          collect(N-1, Round, Voted, Value);
         false ->
-          collect(..., ..., ..., ...)
+          collect(N-1, Round, MaxVoted, Proposal)
       end;
     {promise, _, _,  _} ->
       collect(N, Round, MaxVoted, Proposal);
     {sorry, {prepare, Round}} ->
-      collect(..., ..., ..., ...);
+      collect(N, Round, MaxVoted, Proposal); % Decrease N cause one of the acceptors didn't promise on it
     {sorry, _} ->
       collect(N, Round, MaxVoted, Proposal)
   after ?timeout ->
@@ -82,11 +82,11 @@ vote(0, _) ->
 vote(N, Round) ->
   receive
     {vote, Round} ->
-      vote(..., ...);
+      vote(N-1, Round); % I decrement because they voted for Round
     {vote, _} ->
       vote(N, Round);
     {sorry, {accept, Round}} ->
-      vote(..., ...);
+      vote(N, Round); % I don't decrement because they didn't vote for Round
     {sorry, _} ->
       vote(N, Round)
   after ?timeout ->
