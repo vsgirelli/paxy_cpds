@@ -9,8 +9,12 @@
 start(Sleep) ->
   AcceptorNames = ["Homer", "Marge", "Bart", "Lisa", "Maggie"],
   AccRegister = [homer, marge, bart, lisa, maggie],
+  %AcceptorNames = ["Homer", "Marge", "Bart", "Lisa", "Maggie", "Valeria", "Keith", "Jordi", "Guitart"],
+  %AccRegister = [homer, marge, bart, lisa, maggie, valeria, keith, jordi, guitart],
   ProposerNames = [{"Fry", ?RED}, {"Bender", ?GREEN}, {"Leela", ?BLUE}],
   PropInfo = [{fry, ?RED}, {bender, ?GREEN}, {leela, ?BLUE}],
+  %ProposerNames = [{"Fry", ?RED}, {"Bender", ?GREEN}, {"Leela", ?BLUE}, {"Valeria", ?RED}, {"Keith", ?BLUE}, {"Jordi", ?GREEN}, {"Guitart", ?RED}],
+  %PropInfo = [{fry, ?RED}, {bender, ?GREEN}, {leela, ?BLUE}, {valeria, ?RED}, {keith, ?BLUE}, {jordi, ?GREEN}, {guitart, ?RED}],
   register(gui, spawn(fun() -> gui:start(AcceptorNames, ProposerNames) end)),
   gui ! {reqState, self()},
   receive
@@ -62,6 +66,10 @@ stop() ->
   stop(bart),
   stop(lisa),
   stop(maggie),
+  %stop(valeria),
+  %stop(keith),
+  %stop(jordi),
+  %stop(guitart),
   stop(gui).
 
 stop(Name) ->
