@@ -38,7 +38,7 @@ acceptor(Name, Promised, Voted, Value, PanelId) ->
     {accept, Proposer, Round, Proposal} ->
       case order:goe(Round, Promised) of %
         true ->
-          timer:send_after(T, Proposer, {vote, Round}), %
+          %timer:send_after(T, Proposer, {vote, Round}), %
           if P =< ?drop -> % if the drop P is 1 or less, then send the message
                io:format("message dropped~n");
              true ->
