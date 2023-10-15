@@ -56,7 +56,7 @@ acceptor(Name, Promised, Voted, Value, PanelId) ->
               acceptor(Name, Promised, Voted, Value, PanelId) %
           end;
         false ->
-          %Proposer ! {sorry, {accept, Voted}}, %
+          Proposer ! {sorry, {accept, Voted}}, %
           acceptor(Name, Promised, Voted, Value, PanelId)
       end;
     stop ->
