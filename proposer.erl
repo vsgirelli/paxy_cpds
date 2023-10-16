@@ -36,16 +36,16 @@ round(Name, Backoff, Round, Proposal, Acceptors, PanelId) ->
 ballot(Name, Round, Proposal, Acceptors, PanelId) ->
   prepare(Round, Acceptors), %
   Quorum = (length(Acceptors) div 2) + 1, %
-  Sorry = Quorum,
+  Sorry_Count = Quorum,
   MaxVoted = order:null(),
-  case collect(Quorum, Round, MaxVoted, Proposal, Sorry) of % collect N promises (sends the quorum to control the amount of sorry messages)
+  case collect(Quorum, Round, MaxVoted, Proposal, Sorry_Count) of % collect N promises (and control the amount of sorry messages)
     {accepted, Value} ->
       io:format("[Proposer ~w] Phase 2: round ~w proposal ~w (was ~w)~n",
                  [Name, Round, Value, Proposal]),
       % update gui
       PanelId ! {updateProp, "Round: " ++ io_lib:format("~p", [Round]), Value},
       accept(Round, Value, Acceptors), %
-      case vote(Quorum, Round, Sorry) of % sends the quorum to control the amount of sorry messages
+      case vote(Quorum, Round, Sorry_Count) of % sends the quorum to control the amount of sorry messages
         ok ->
           {ok, Value}; %
         abort ->
@@ -57,47 +57,47 @@ ballot(Name, Round, Proposal, Acceptors, PanelId) ->
 
 collect(0, _, _, Proposal, _) -> % reached the Quorum
   {accepted, Proposal};
-collect(_, Round, _, _, 0) -> % the majority of the Acceptors answered sorry, so abort the current Round
+collect(N, Round, _, _, 0) -> % the majority of the Acceptors answered sorry, so abort the current Round
   io:format("[Sorry message for Prepare:] Round ~w*********~n", [Round]),
   abort;
-collect(N, Round, MaxVoted, Proposal, Sorry) ->
+collect(N, Round, MaxVoted, Proposal, Sorry_Count) ->
   receive
     {promise, Round, _, na} -> % is the first answer, at the beginning of the execution, so we already start decrementing
-      collect(N-1, Round, MaxVoted, Proposal, Sorry); % There wasn't any previous promise, so the acceptor promised on Round
+      collect(N-1, Round, MaxVoted, Proposal, Sorry_Count); % There wasn't any previous promise, so the acceptor promised on Round
     {promise, Round, Voted, Value} ->
       case order:gr(Voted, MaxVoted) of % There was a previous MaxVoted, that could be bigger or not than Voted
         true ->
-          collect(N-1, Round, Voted, Value, Sorry);
+          collect(N-1, Round, Voted, Value, Sorry_Count);
         false ->
-          collect(N-1, Round, MaxVoted, Proposal, Sorry)
+          collect(N-1, Round, MaxVoted, Proposal, Sorry_Count)
       end;
     {promise, _, _,  _} ->
-      collect(N, Round, MaxVoted, Proposal, Sorry);
+      collect(N, Round, MaxVoted, Proposal, Sorry_Count);
     {sorry, {prepare, Round}} ->
-      collect(N, Round, MaxVoted, Proposal, Sorry-1); % Does not decrease N cause one of the acceptors didn't promise on it
-                                                      % Decreases the Sorry quorum to verify when the majority could not promise on a value
+      collect(N, Round, MaxVoted, Proposal, Sorry_Count); % Does not decrease N cause one of the acceptors didn't promise on it
+                                                      % Decreases the Sorry_Count quorum to verify when the majority could not promise on a value
     {sorry, _} ->
-      collect(N, Round, MaxVoted, Proposal, Sorry-1) % Decreases the Sorry quorum to verify when the majority could not promise on a value
+      collect(N, Round, MaxVoted, Proposal, Sorry_Count)
   after ?timeout ->
     abort
   end.
 
 vote(0, _, _) ->
   ok;
-vote(_, Round, 0) -> % the majority of the Acceptors answered sorry, so abort the current Round
+vote(N, Round, 0) -> % the majority of the Acceptors answered sorry, so abort the current Round
   io:format("[Sorry message for Accept:} Round ~w*********~n", [Round]),
   abort;
-vote(N, Round, Sorry) ->
+vote(N, Round, Sorry_Count) ->
   receive
     {vote, Round} ->
-      vote(N-1, Round, Sorry); % I decrement because they voted for Round
+      vote(N-1, Round, Sorry_Count); % I decrement because they voted for Round
     {vote, _} ->
-      vote(N, Round, Sorry);
+      vote(N, Round, Sorry_Count);
     {sorry, {accept, Round}} ->
-      vote(N, Round, Sorry-1); % I don't decrement because they didn't vote for Round
-                               % Decreases the Sorry quorum to verify when the majority could not promise on a value
+      vote(N, Round, Sorry_Count); % I don't decrement N because they didn't vote for Round
+                               % Decreases the Sorry_Count quorum to verify when the majority could not promise on a value
     {sorry, _} ->
-      vote(N, Round, Sorry-1) % Decreases the Sorry quorum to verify when the majority could not promise on a value
+      vote(N, Round, Sorry_Count)
   after ?timeout ->
     abort
   end.
